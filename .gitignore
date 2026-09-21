@@ -1,0 +1,8 @@
+# Distribution zip is over GitHub's 100 MB limit; rebuild it locally instead
+*.zip
+!build/المكتبة/**/*.zip
+
+# Per-install data created at runtime
+build/settings.ini
+build/سجل الدخول.csv
+build/ملفات الطلاب/
