@@ -1,0 +1,16 @@
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\bin\Debug\بنك المعلومات.exe
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\bin\Debug\بنك المعلومات.pdb
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\bin\Debug\بنك المعلومات.xml
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\ResolveAssemblyReference.cache
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.Q5.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.Form1.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.Q1.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.Q2.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.X.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.q3.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.Q4.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك_المعلومات.Resources.resources
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك المعلومات.vbproj.GenerateResource.Cache
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك المعلومات.exe
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك المعلومات.xml
+d:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Debug\بنك المعلومات.pdb

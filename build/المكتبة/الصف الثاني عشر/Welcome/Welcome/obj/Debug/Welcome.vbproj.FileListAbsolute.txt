@@ -1,0 +1,13 @@
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\bin\Debug\Welcome.exe
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\bin\Debug\Welcome.pdb
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\bin\Debug\Welcome.xml
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\ResolveAssemblyReference.cache
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\WindowsApplication1.Form1.resources
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\WindowsApplication1.Resources.resources
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\Welcome.vbproj.GenerateResource.Cache
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\Welcome.exe
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\Welcome.xml
+d:\--\Visual Studio 2008\Projects\Welcome\Welcome\obj\Debug\Welcome.pdb
+d:\Work\Bok\12\1\Wp1\Welcome\Welcome\obj\Debug\Welcome.exe
+d:\Work\Bok\12\1\Wp1\Welcome\Welcome\obj\Debug\Welcome.xml
+d:\Work\Bok\12\1\Wp1\Welcome\Welcome\obj\Debug\Welcome.pdb

@@ -1,0 +1,13 @@
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\bin\Release\بنك المعلومات.exe
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\bin\Release\بنك المعلومات.pdb
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\bin\Release\بنك المعلومات.xml
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\ResolveAssemblyReference.cache
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك_المعلومات.Form1.resources
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك_المعلومات.Form2.resources
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك_المعلومات.Form3.resources
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك_المعلومات.Form4.resources
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك_المعلومات.Resources.resources
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك المعلومات.vbproj.GenerateResource.Cache
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك المعلومات.exe
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك المعلومات.xml
+D:\Work\Bok\12\1\Wp1\بنك المعلومات\بنك المعلومات\obj\Release\بنك المعلومات.pdb
