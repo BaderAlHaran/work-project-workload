@@ -112,7 +112,12 @@ namespace Worksheets
                 {
                     try
                     {
+                        // CreateDirectory succeeds on an existing folder even without write access,
+                        // so actually write a file to catch "access denied" here instead of mid-copy.
                         Directory.CreateDirectory(custom);
+                        string probe = Path.Combine(custom, ".write-test-" + Environment.MachineName);
+                        File.WriteAllText(probe, "");
+                        File.Delete(probe);
                         return custom;
                     }
                     catch (Exception ex)
@@ -120,8 +125,8 @@ namespace Worksheets
                         if (!warnedUnreachable)
                         {
                             warnedUnreachable = true;
-                            Ui.Error("تعذر الوصول إلى مجلد حفظ أعمال الطلاب:\n" + custom + "\n\n" + ex.Message +
-                                     "\n\nسيتم الحفظ مؤقتاً على سطح المكتب.");
+                            Ui.Error("لا يمكن الحفظ في مجلد أعمال الطلاب:\n" + custom + "\n\n" + ex.Message +
+                                     "\n\nسيتم الحفظ مؤقتاً على سطح المكتب. أبلغ المسؤول لمنح صلاحية الكتابة في هذا المجلد.");
                         }
                     }
                 }
