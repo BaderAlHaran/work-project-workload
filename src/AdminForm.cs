@@ -19,7 +19,7 @@ namespace Worksheets
             Text = "أوراق العمل - لوحة المسؤول";
             Ui.Rtl(this);
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(Ui.S(1040), Ui.S(680));
+            ClientSize = new Size(Ui.S(1040), Ui.S(740));
             MinimumSize = new Size(Ui.S(760), Ui.S(500));
 
             var header = Ui.Header("لوحة المسؤول", "إدارة أوراق العمل: إضافة وحذف وتعديل الملفات");
@@ -46,6 +46,7 @@ namespace Worksheets
             side.Controls.Add(ActionButton("🔄 تحديث", delegate { LoadTree(); }, false));
             side.Controls.Add(Section("الطلاب"));
             side.Controls.Add(ActionButton("👥 ملفات الطلاب", delegate { Ui.OpenInExplorer(AppPaths.Students, false); }, false));
+            side.Controls.Add(ActionButton("📂 مكان حفظ أعمال الطلاب", delegate { using (var f = new StudentsFolderForm()) f.ShowDialog(this); }, false));
             side.Controls.Add(ActionButton("📋 سجل الدخول", OpenLog, false));
             side.Controls.Add(Section("الإعدادات"));
             side.Controls.Add(ActionButton("📝 طريقة فتح أوراق العمل", delegate { using (var f = new OpenModeForm()) f.ShowDialog(this); }, false));

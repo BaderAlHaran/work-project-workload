@@ -42,9 +42,15 @@ namespace Worksheets
             }
         }
 
+        string folder;
+        // Resolved once per login, so a network folder is only looked up once.
         public string Folder
         {
-            get { return Path.Combine(AppPaths.Students, Grade.Name, SectionFolder, Catalog.SafeName(Name)); }
+            get
+            {
+                if (folder == null) folder = Path.Combine(AppPaths.Students, Grade.Name, SectionFolder, Catalog.SafeName(Name));
+                return folder;
+            }
         }
     }
 
@@ -70,29 +76,60 @@ namespace Worksheets
 
     static class AppPaths
     {
-        public static readonly string Base = AppDomain.CurrentDomain.BaseDirectory;
+        // The folder that holds the real exe, library and settings (e.g. M:\أوراق العمل\).
+        // Differs from the running exe's folder when Program runs a local copy (see Program.RunLocalCopy).
+        static string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        public static string Base
+        {
+            get { return baseDir; }
+            set { baseDir = value.EndsWith("\\") ? value : value + "\\"; }
+        }
+
+        public static string Exe { get { return Path.Combine(Base, Path.GetFileName(System.Windows.Forms.Application.ExecutablePath)); } }
         public static string Library { get { return Path.Combine(Base, "المكتبة"); } }
         public static string Settings { get { return Path.Combine(Base, "settings.ini"); } }
+        public const string StudentsFolderName = "ملفات الطلاب";
 
-        static string students;
+        public static string DesktopStudents
+        {
+            get
+            {
+                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                if (string.IsNullOrEmpty(desktop)) desktop = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                return Path.Combine(desktop, StudentsFolderName);
+            }
+        }
+
+        // Where student work is saved: the admin's choice in the shared settings.ini
+        // (a network folder), or each PC's Desktop when none is set.
+        // Resolved on every use so a change applies at the next login without restarting.
         public static string Students
         {
             get
             {
-                if (students == null) students = ResolveStudents();
-                return students;
+                string custom = Worksheets.Settings.Get("students_folder");
+                if (!string.IsNullOrEmpty(custom))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(custom);
+                        return custom;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!warnedUnreachable)
+                        {
+                            warnedUnreachable = true;
+                            Ui.Error("تعذر الوصول إلى مجلد حفظ أعمال الطلاب:\n" + custom + "\n\n" + ex.Message +
+                                     "\n\nسيتم الحفظ مؤقتاً على سطح المكتب.");
+                        }
+                    }
+                }
+                Directory.CreateDirectory(DesktopStudents);
+                return DesktopStudents;
             }
         }
-
-        // On the Desktop so students and the teacher can find their work easily.
-        static string ResolveStudents()
-        {
-            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            if (string.IsNullOrEmpty(desktop)) desktop = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string p = Path.Combine(desktop, "ملفات الطلاب");
-            Directory.CreateDirectory(p);
-            return p;
-        }
+        static bool warnedUnreachable;
 
         static string loginLog;
         // Next to the exe (the shared M: folder) so the admin sees logins from every computer;
@@ -301,7 +338,7 @@ namespace Worksheets
 
         public static void Create(string lnkPath)
         {
-            string exe = System.Windows.Forms.Application.ExecutablePath;
+            string exe = AppPaths.Exe;
             var link = (IShellLinkW)new ShellLink();
             try
             {
@@ -347,7 +384,7 @@ namespace Worksheets
         {
             try
             {
-                string exe = System.Windows.Forms.Application.ExecutablePath;
+                string exe = AppPaths.Exe;
                 bool enabled, offered;
                 using (var key = Key())
                 {

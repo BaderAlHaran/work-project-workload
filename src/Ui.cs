@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -10,9 +12,14 @@ namespace Worksheets
         [DllImport("user32.dll")]
         static extern bool SetProcessDPIAware();
 
+        const string BaseArg = "--base";
+
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == BaseArg) AppPaths.Base = args[1];
+            else if (RunLocalCopy()) return;
+
             try { SetProcessDPIAware(); } catch { }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -28,6 +35,51 @@ namespace Worksheets
                 Form next = login.AdminMode ? (Form)new AdminForm() : new StudentForm(login.Student);
                 Application.Run(next);
                 if (!(next.Tag is string && (string)next.Tag == "logout")) break;
+            }
+        }
+
+        // When started from a network drive, runs a private copy of the exe from this PC instead,
+        // passing the shared folder with --base. The exe on M: is then never locked, so the admin
+        // can replace it at any time and every PC picks up the new version on its next start.
+        // Each version is cached in its own folder, so a copy that is still running is never overwritten.
+        static bool RunLocalCopy()
+        {
+            try
+            {
+                string exe = Application.ExecutablePath;
+                string shared = Path.GetDirectoryName(exe);
+                if (!AppPaths.IsNetwork(exe)) return false;
+
+                var info = new FileInfo(exe);
+                string version = info.LastWriteTimeUtc.Ticks.ToString("x") + "-" + info.Length.ToString("x");
+                string cacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Shortcuts.Name, "app");
+                string local = Path.Combine(cacheRoot, version, Path.GetFileName(exe));
+
+                if (!File.Exists(local))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(local));
+                    File.Copy(exe, local + ".tmp", true);
+                    File.Move(local + ".tmp", local);
+                }
+
+                // A trailing backslash before the closing quote would escape it, so none is passed.
+                Process.Start(new ProcessStartInfo(local, BaseArg + " \"" + shared.TrimEnd('\\') + "\"")
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = shared,
+                });
+
+                // Best-effort cleanup of older versions that are no longer running.
+                foreach (var dir in Directory.GetDirectories(cacheRoot))
+                {
+                    if (dir.EndsWith(version)) continue;
+                    try { Directory.Delete(dir, true); } catch { }
+                }
+                return true;
+            }
+            catch
+            {
+                return false; // fall back to running straight from the network
             }
         }
     }
