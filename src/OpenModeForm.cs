@@ -30,13 +30,13 @@ namespace Worksheets
                 "PyCharm  —  " + Found(py),
                 "Visual Studio Code  —  " + Found(code),
                 "البرنامج الافتراضي للملف (ملفات بايثون تفتح في IDLE)",
-                "مستكشف الملفات فقط (فتح المجلد)",
+                "المجلد فقط (بدون برنامج تحرير)",
                 "برنامج آخر:",
             };
 
             var intro = new Label
             {
-                Text = "عند اختيار الطالب لورقة عمل، تُنسخ إلى مجلده ثم تُفتح بالطريقة التالية.\nينطبق هذا الإعداد على جميع الأجهزة.",
+                Text = "عند اختيار الطالب لورقة عمل، تُنسخ إلى مجلده ويُفتح المجلد، ثم تُفتح بالبرنامج التالي.\nينطبق هذا الإعداد على جميع الأجهزة.",
                 Location = new Point(Ui.S(20), Ui.S(16)), Size = new Size(Ui.S(520), Ui.S(48)), ForeColor = Ui.Muted,
             };
             Controls.Add(intro);
@@ -62,7 +62,7 @@ namespace Worksheets
 
             var note = new Label
             {
-                Text = "ملاحظة: البرنامج المختار يجب أن يكون مثبتاً على أجهزة الطلاب. إذا لم يوجد، يُفتح المجلد في المستكشف.",
+                Text = "ملاحظة: البرنامج المختار يجب أن يكون مثبتاً على أجهزة الطلاب. إذا لم يوجد، يُفتح المجلد فقط.",
                 Location = new Point(Ui.S(20), y), Size = new Size(Ui.S(520), Ui.S(40)), ForeColor = Ui.Muted, Font = Ui.F(9f),
             };
             Controls.Add(note);

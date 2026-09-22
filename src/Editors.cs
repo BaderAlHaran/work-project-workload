@@ -25,14 +25,12 @@ namespace Worksheets
             set { Settings.Set("open_custom", value); }
         }
 
+        // The folder always opens in Explorer so students can see their files; the editor opens alongside it.
         public static void Open(string folder)
         {
-            try
-            {
-                if (TryOpen(folder)) return;
-            }
-            catch { }
             Ui.OpenInExplorer(folder, false);
+            try { TryOpen(folder); }
+            catch { }
         }
 
         static bool TryOpen(string folder)
