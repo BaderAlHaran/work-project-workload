@@ -48,6 +48,7 @@ namespace Worksheets
             side.Controls.Add(ActionButton("👥 ملفات الطلاب", delegate { Ui.OpenInExplorer(AppPaths.Students, false); }, false));
             side.Controls.Add(ActionButton("📋 سجل الدخول", OpenLog, false));
             side.Controls.Add(Section("الإعدادات"));
+            side.Controls.Add(ActionButton("📝 طريقة فتح أوراق العمل", delegate { using (var f = new OpenModeForm()) f.ShowDialog(this); }, false));
             side.Controls.Add(ActionButton("🔑 تغيير كلمة المرور", ChangePassword, false));
             side.Controls.Add(ActionButton("🖥️ إنشاء اختصار على سطح المكتب", CreateShortcut, false));
 

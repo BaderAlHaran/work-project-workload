@@ -196,7 +196,9 @@ namespace Worksheets
                 return;
             }
             finally { Cursor = Cursors.Default; }
-            Ui.OpenInExplorer(dest, false);
+            Cursor = Cursors.WaitCursor;
+            Editors.Open(dest);
+            Cursor = Cursors.Default;
             Reload();
         }
     }

@@ -402,6 +402,19 @@ namespace Worksheets
                 return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes("ws-salt:" + s))).Replace("-", "");
         }
 
+        public static string Get(string key)
+        {
+            string v;
+            return Read().TryGetValue(key, out v) ? v : null;
+        }
+
+        public static void Set(string key, string value)
+        {
+            var d = Read();
+            d[key] = value;
+            Write(d);
+        }
+
         public static bool CheckPassword(string p)
         {
             string h;
