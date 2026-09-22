@@ -47,12 +47,12 @@ namespace Worksheets
             };
             bar.Controls.Add(title);
 
-            var status = new Label
-            {
-                Dock = DockStyle.Bottom, Height = Ui.S(30), ForeColor = Ui.Muted, Font = Ui.F(9f),
-                Text = "  مجلدك: " + Ui.Ltr(student.Folder), TextAlign = ContentAlignment.MiddleRight,
-                BackColor = Color.White, AutoEllipsis = true,
-            };
+            status.Dock = DockStyle.Bottom;
+            status.Height = Ui.S(30);
+            status.Font = Ui.F(9f);
+            status.TextAlign = ContentAlignment.MiddleRight;
+            status.BackColor = Color.White;
+            status.AutoEllipsis = true;
 
             cards.Dock = DockStyle.Fill;
             cards.AutoScroll = true;
@@ -81,9 +81,66 @@ namespace Worksheets
             poll.Tick += delegate { if (Signature(SafeList()) != shown) Reload(); };
             poll.Start();
             FormClosed += delegate { poll.Dispose(); };
+
+            SetupSync();
+            UpdateStatus();
         }
 
         string shown;
+        readonly Label status = new Label();
+        WorkSync sync;
+
+        // "Desktop + automatic copy" mode: copy to the server at login, every N minutes, and on logout.
+        void SetupSync()
+        {
+            sync = WorkSync.For(student);
+            if (sync == null) return;
+
+            sync.Finished += delegate
+            {
+                if (IsHandleCreated && !IsDisposed) BeginInvoke((Action)UpdateStatus);
+            };
+            Shown += delegate { sync.RunInBackground(); }; // picks up work left from an earlier session
+
+            var timer = new Timer { Interval = Storage.SyncMinutes * 60 * 1000 };
+            timer.Tick += delegate { sync.RunInBackground(); };
+            timer.Start();
+            FormClosed += delegate { timer.Dispose(); };
+
+            FormClosing += delegate
+            {
+                status.Text = "  جاري نسخ عملك إلى الخادم…";
+                status.ForeColor = Ui.Navy;
+                status.Refresh();
+                Cursor = Cursors.WaitCursor;
+                bool ok = sync.RunNow();
+                Cursor = Cursors.Default;
+                if (!ok)
+                    Ui.Info("لم يتم نسخ عملك إلى الخادم هذه المرة:\n" + sync.LastError +
+                            "\n\nلا تقلق، عملك محفوظ على سطح المكتب، وسيُنسخ في المرة القادمة.");
+            };
+        }
+
+        void UpdateStatus()
+        {
+            string text = "  مجلدك: " + Ui.Ltr(student.Folder);
+            status.ForeColor = Ui.Muted;
+            if (sync != null)
+            {
+                if (sync.LastError != null)
+                {
+                    text += "     ⚠ تعذر النسخ إلى الخادم (ستتم إعادة المحاولة): " + sync.LastError;
+                    status.ForeColor = Ui.Danger;
+                }
+                else if (sync.LastSuccess.HasValue)
+                {
+                    text += "     ✔ آخر نسخ إلى الخادم: " + sync.LastSuccess.Value.ToString("HH:mm");
+                    status.ForeColor = Ui.Success;
+                }
+                else text += "     يُنسخ عملك إلى الخادم كل " + Storage.SyncMinutes + " دقيقة وعند الخروج";
+            }
+            status.Text = text;
+        }
 
         List<Worksheet> SafeList()
         {

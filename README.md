@@ -10,7 +10,10 @@ The worksheets come from the Ministry of Education site: https://labonline.moe.e
   `Desktop\ملفات الطلاب\<الصف>\<الشعبة>\<الاسم>\ورقة عمل N - …` and opens it. Existing student work is never overwritten.
 - **Admin panel** (default password `1234`): add, rename and delete worksheets (drag and drop works), open student folders and the login log, change the password, create shortcuts.
 - **Shared network drive:** run it from a mapped drive (e.g. `M:`) and every PC sees the admin's changes. Open student windows refresh within about 20 seconds.
-- **Where student work goes:** each PC's Desktop, or a shared folder such as `M:\أعمال الطلاب`, chosen in the admin panel and applied to every PC.
+- **Where student work goes** (admin panel, applied to every PC):
+  - each PC's Desktop only;
+  - **Desktop + automatic copy** to a server folder such as `M:\أعمال الطلاب` at login, every N minutes (default 30) and at logout. It only adds and updates files and never deletes on the server. Students need "create files / folders" rights there (a drop-box folder), not full write access;
+  - or saving directly in a server folder.
 - **Opening worksheets:** opens the folder plus PyCharm, VS Code or the default editor (configurable in the admin panel).
 - **Hands-off updates:** when started from a network drive, the app runs a private copy cached in `%LOCALAPPDATA%\أوراق العمل\app\`, so the exe on the share is never locked. Replace it at any time and every PC runs the new version the next time the app is opened.
 - **Self-repairing shortcuts:** Desktop and Start menu shortcuts are re-pointed to the shared exe on every start.

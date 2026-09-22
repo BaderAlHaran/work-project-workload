@@ -45,7 +45,7 @@ namespace Worksheets
             side.Controls.Add(ActionButton("🔍 فتح في المستكشف", ShowInExplorer, false));
             side.Controls.Add(ActionButton("🔄 تحديث", delegate { LoadTree(); }, false));
             side.Controls.Add(Section("الطلاب"));
-            side.Controls.Add(ActionButton("👥 ملفات الطلاب", delegate { Ui.OpenInExplorer(AppPaths.Students, false); }, false));
+            side.Controls.Add(ActionButton("👥 ملفات الطلاب", delegate { Ui.OpenInExplorer(Storage.TeacherFolder, false); }, false));
             side.Controls.Add(ActionButton("📂 مكان حفظ أعمال الطلاب", delegate { using (var f = new StudentsFolderForm()) f.ShowDialog(this); }, false));
             side.Controls.Add(ActionButton("📋 سجل الدخول", OpenLog, false));
             side.Controls.Add(Section("الإعدادات"));

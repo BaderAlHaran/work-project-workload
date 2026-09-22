@@ -42,13 +42,19 @@ namespace Worksheets
             }
         }
 
+        // <الصف>\<الشعبة>\<الاسم>, the same under the Desktop folder and the server copy.
+        public string RelativeFolder
+        {
+            get { return Path.Combine(Grade.Name, SectionFolder, Catalog.SafeName(Name)); }
+        }
+
         string folder;
         // Resolved once per login, so a network folder is only looked up once.
         public string Folder
         {
             get
             {
-                if (folder == null) folder = Path.Combine(AppPaths.Students, Grade.Name, SectionFolder, Catalog.SafeName(Name));
+                if (folder == null) folder = Path.Combine(AppPaths.Students, RelativeFolder);
                 return folder;
             }
         }
@@ -100,14 +106,14 @@ namespace Worksheets
             }
         }
 
-        // Where student work is saved: the admin's choice in the shared settings.ini
-        // (a network folder), or each PC's Desktop when none is set.
+        // Where students work: a network folder when the admin chose "network" in the shared
+        // settings.ini, otherwise each PC's Desktop (also in "sync" mode, which copies to the server later).
         // Resolved on every use so a change applies at the next login without restarting.
         public static string Students
         {
             get
             {
-                string custom = Worksheets.Settings.Get("students_folder");
+                string custom = Storage.Mode == Storage.NetworkMode ? Storage.NetworkFolder : null;
                 if (!string.IsNullOrEmpty(custom))
                 {
                     try
