@@ -75,8 +75,8 @@ namespace Worksheets
             tree.DragEnter += (o, e) => e.Effect = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
             tree.DragOver += (o, e) =>
             {
-                var n = tree.GetNodeAt(tree.PointToClient(new Point(e.X, e.Y)));
-                if (n != null) tree.SelectedNode = n;
+                var n = NodeAtRow(tree.PointToClient(new Point(e.X, e.Y)).Y);
+                if (n != null && tree.SelectedNode != n) tree.SelectedNode = n;
             };
             tree.DragDrop += (o, e) => Import((string[])e.Data.GetData(DataFormats.FileDrop));
 
@@ -139,6 +139,19 @@ namespace Worksheets
             if (keep != null) Reselect(tree.Nodes, keep);
             if (tree.SelectedNode == null) tree.SelectedNode = root;
             UpdateStatus();
+        }
+
+        // The row under the pointer, judged by height only. GetNodeAt also checks X, which misses
+        // in the mirrored right-to-left tree, so a drop used to land on the previously selected grade.
+        TreeNode NodeAtRow(int y)
+        {
+            for (var n = tree.TopNode; n != null; n = n.NextVisibleNode)
+            {
+                var b = n.Bounds;
+                if (y >= b.Top && y < b.Bottom) return n;
+                if (b.Top > tree.ClientSize.Height) break;
+            }
+            return null;
         }
 
         void Reselect(TreeNodeCollection nodes, string path)
@@ -266,12 +279,19 @@ namespace Worksheets
             string target = TargetFolder();
             if (target == null || paths == null || paths.Length == 0) return;
             string last = null;
+            int added = 0;
+            var macOnly = new List<string>();
             try
             {
                 Cursor = Cursors.WaitCursor;
                 foreach (var src in paths)
                 {
-                    if (Catalog.IsMacJunk(src.TrimEnd('\\'))) continue;
+                    // "._name" files and folders holding only them are Mac metadata with no content.
+                    if (Catalog.IsMacJunk(src.TrimEnd('\\')) || (Directory.Exists(src) && Catalog.IsMacOnlyFolder(src)))
+                    {
+                        macOnly.Add(Path.GetFileName(src.TrimEnd('\\')));
+                        continue;
+                    }
                     string name = Path.GetFileName(src.TrimEnd('\\'));
                     string dst = Path.Combine(target, name);
                     if (string.Equals(src.TrimEnd('\\'), dst, StringComparison.OrdinalIgnoreCase)) continue;
@@ -293,6 +313,7 @@ namespace Worksheets
                         File.Copy(src, dst, true);
                     }
                     last = dst;
+                    added++;
                 }
             }
             catch (Exception ex) { Ui.Error("تعذر النسخ:\n" + ex.Message); }
@@ -300,6 +321,15 @@ namespace Worksheets
 
             RefreshFolder(target);
             if (last != null) Reselect(tree.Nodes, last);
+
+            if (macOnly.Count > 0)
+            {
+                string list = string.Join("، ", macOnly.Take(6).ToArray()) + (macOnly.Count > 6 ? " …" : "");
+                Ui.Error((added == 0 ? "لم تتم إضافة أي ملف." : "تمت إضافة " + added + " فقط.") + "\n\n" +
+                         "هذه ليست تمارين حقيقية:\n" + list + "\n\n" +
+                         "الملفات التي يبدأ اسمها بـ «._» ينشئها جهاز Mac تلقائياً، وتحتوي فقط على معلومات " +
+                         "(مثل رابط التحميل) وليس على الكود. انسخ الملفات الأصلية (مثل ex 1.py) من جهاز Mac ثم أضفها.");
+            }
         }
 
         void NewFolder()

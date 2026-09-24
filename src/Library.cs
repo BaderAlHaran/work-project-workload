@@ -236,6 +236,17 @@ namespace Worksheets
             return n.StartsWith("._") || n.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase) || n == "__MACOSX";
         }
 
+        // A folder copied from a Mac without its real files: only "._" / .DS_Store files inside.
+        public static bool IsMacOnlyFolder(string dir)
+        {
+            try
+            {
+                var files = Directory.GetFiles(dir, "*", SearchOption.AllDirectories);
+                return files.Length > 0 && files.All(IsMacJunk);
+            }
+            catch { return false; } // unreadable: let the copy report the real error
+        }
+
         public static bool IsHidden(string p)
         {
             string n = Path.GetFileName(p);
