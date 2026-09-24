@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
 namespace Worksheets
@@ -33,15 +34,23 @@ namespace Worksheets
             set { Settings.Set("open_custom", value); }
         }
 
+        // True when this worksheet will open in Visual Basic, so the student can first pick a form.
+        public static bool OpensInVisualBasic(string folder, Grade grade)
+        {
+            string mode = ModeFor(grade);
+            return (mode == VisualBasic || mode == Auto) && VisualBasicProject(folder) != null;
+        }
+
         // The folder always opens in Explorer so students can see their files; the editor opens alongside it.
-        public static void Open(string folder, Grade grade)
+        // vbForm: a form of a VB project to open on its own, or null for the whole project.
+        public static void Open(string folder, Grade grade, VbForm vbForm)
         {
             Ui.OpenInExplorer(folder, false);
-            try { TryOpen(folder, ModeFor(grade)); }
+            try { TryOpen(folder, ModeFor(grade), vbForm); }
             catch { }
         }
 
-        static bool TryOpen(string folder, string mode)
+        static bool TryOpen(string folder, string mode, VbForm vbForm)
         {
             string main = MainFile(folder);
             string vbProject = VisualBasicProject(folder);
@@ -55,10 +64,10 @@ namespace Worksheets
                 case VisualBasic:
                     // Worksheets without a VB project (pictures, web pages) open in their normal program,
                     // but never in a Python editor.
-                    if (vbProject != null) return OpenVisualBasic(vbProject);
+                    if (vbProject != null) return OpenVisualBasic(vbProject, vbForm);
                     return main != null && !IsPython(main) && OpenWithDefault(main);
                 default:
-                    if (vbProject != null && OpenVisualBasic(vbProject)) return true;
+                    if (vbProject != null && OpenVisualBasic(vbProject, vbForm)) return true;
                     return LaunchIde(FindPyCharm(), folder, main)
                         || LaunchIde(FindVSCode(), folder, main)
                         || OpenWithDefault(main);
@@ -149,10 +158,23 @@ namespace Worksheets
             return exe;
         }
 
-        static bool OpenVisualBasic(string project)
+        static bool OpenVisualBasic(string project, VbForm vbForm)
         {
             string ext = Path.GetExtension(project).ToLowerInvariant();
             string dir = Path.GetDirectoryName(project);
+
+            // A single form: start Visual Studio itself so it can be told to open that form's file
+            // (the association below can only open the whole solution).
+            if (vbForm != null && ext != ".vbp")
+            {
+                string devenv = FindVisualStudio();
+                if (devenv != null)
+                {
+                    string args = Quote(project) + " /Command \"File.OpenFile " + Path.GetFileName(vbForm.File) + "\"";
+                    Process.Start(new ProcessStartInfo(devenv, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(vbForm.File) });
+                    return true;
+                }
+            }
 
             // 1) The file association. For .sln this is Visual Studio's Version Selector,
             //    which picks the right installed version for the project by itself.
@@ -247,6 +269,80 @@ namespace Worksheets
                 if (File.Exists(c)) return c;
             }
             return null;
+        }
+
+        // ---------- the forms inside a VB project ----------
+
+        public class VbForm
+        {
+            public string File;       // Form2.vb
+            public string ClassName;  // Form2
+            public string Caption;    // السؤال الأول (the form's title bar text)
+            public override string ToString() { return Caption.Length > 0 ? ClassName + " — " + Caption : ClassName; }
+        }
+
+        public static string VisualBasicProjectFile(string folder) { return Best(folder, new[] { ".vbproj" }); }
+
+        // Windows Forms in the project: X.vb with an X.Designer.vb that inherits Form.
+        public static List<VbForm> VisualBasicForms(string folder)
+        {
+            var forms = new List<VbForm>();
+            string proj = VisualBasicProjectFile(folder);
+            if (proj == null) return forms;
+            foreach (var designer in Directory.GetFiles(Path.GetDirectoryName(proj), "*.Designer.vb"))
+            {
+                string code = designer.Substring(0, designer.Length - ".Designer.vb".Length) + ".vb";
+                if (!File.Exists(code)) continue;
+                string text = ReadText(designer);
+                if (!Regex.IsMatch(text, @"Inherits\s+System\.Windows\.Forms\.Form\b")) continue;
+                var cls = Regex.Match(text, @"Partial\s+(?:Public\s+|Friend\s+)?Class\s+(\w+)");
+                var caption = Regex.Match(text, @"Me\.Text\s*=\s*""([^""]*)""");
+                forms.Add(new VbForm
+                {
+                    File = code,
+                    ClassName = cls.Success ? cls.Groups[1].Value : Path.GetFileNameWithoutExtension(code),
+                    Caption = caption.Success ? caption.Groups[1].Value : "",
+                });
+            }
+            forms.Sort((a, b) => Catalog.NaturalCompare(a.ClassName, b.ClassName));
+            return forms;
+        }
+
+        // The form the project starts with, per My Project\Application.myapp.
+        public static string StartupForm(string folder)
+        {
+            string proj = VisualBasicProjectFile(folder);
+            if (proj == null) return null;
+            string myapp = Path.Combine(Path.GetDirectoryName(proj), "My Project", "Application.myapp");
+            if (!File.Exists(myapp)) return null;
+            var m = Regex.Match(ReadText(myapp), @"<MainForm>\s*(\w+)\s*</MainForm>");
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
+        // Makes F5 run the chosen form. Only ever called on the student's own copy.
+        // VB keeps the startup form in two places: Application.myapp and Application.Designer.vb.
+        public static void SetStartupForm(string folder, string className)
+        {
+            string proj = VisualBasicProjectFile(folder);
+            if (proj == null || string.IsNullOrEmpty(className)) return;
+            string dir = Path.Combine(Path.GetDirectoryName(proj), "My Project");
+            Rewrite(Path.Combine(dir, "Application.myapp"), @"(<MainForm>)\s*\w+\s*(</MainForm>)", "${1}" + className + "${2}");
+            Rewrite(Path.Combine(dir, "Application.Designer.vb"), @"(Me\.MainForm\s*=\s*Global\.[\w.]*?\.)\w+(\s*$)", "${1}" + className + "${2}");
+        }
+
+        static void Rewrite(string file, string pattern, string replacement)
+        {
+            if (!File.Exists(file)) return;
+            Encoding enc;
+            string text;
+            using (var r = new StreamReader(file, Encoding.UTF8, true)) { text = r.ReadToEnd(); enc = r.CurrentEncoding; }
+            string updated = Regex.Replace(text, pattern, replacement, RegexOptions.Multiline);
+            if (updated != text) File.WriteAllText(file, updated, enc);
+        }
+
+        static string ReadText(string file)
+        {
+            using (var r = new StreamReader(file, Encoding.UTF8, true)) return r.ReadToEnd();
         }
 
         public static bool HasVisualBasic()

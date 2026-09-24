@@ -217,7 +217,11 @@ namespace Worksheets
             string main = w.IsFolder ? Editors.MainFile(w.SourcePath) : w.SourcePath;
             string ext = main == null ? "" : Path.GetExtension(main).ToLowerInvariant();
             if (ext == ".py" || ext == ".ipynb") return "بايثون";
-            if (Editors.IsVisualBasic(ext)) return "Visual Basic";
+            if (Editors.IsVisualBasic(ext))
+            {
+                int forms = w.IsFolder ? Editors.VisualBasicForms(w.SourcePath).Count : 0;
+                return forms > 1 ? "Visual Basic  •  " + forms + " نماذج" : "Visual Basic";
+            }
             if (ext == ".txt") return "نص";
             return w.IsFolder ? "مجلد" : "ملف";
         }
@@ -264,8 +268,24 @@ namespace Worksheets
                 return;
             }
             finally { Cursor = Cursors.Default; }
+            // A Visual Basic project with several forms: let the student open one form on its own.
+            Editors.VbForm chosen = null;
+            if (Editors.OpensInVisualBasic(dest, w.Grade))
+            {
+                var forms = Editors.VisualBasicForms(dest);
+                if (forms.Count > 1)
+                {
+                    string original = Editors.StartupForm(w.SourcePath);
+                    using (var picker = new FormPicker(w.Title, forms, original))
+                        if (picker.ShowDialog(this) != DialogResult.OK) { Reload(); return; }
+                        else chosen = picker.Chosen;
+                    try { Editors.SetStartupForm(dest, chosen != null ? chosen.ClassName : original); }
+                    catch (Exception ex) { Ui.Error("تعذر تعيين النموذج الذي يبدأ به المشروع:\n" + ex.Message); }
+                }
+            }
+
             Cursor = Cursors.WaitCursor;
-            Editors.Open(dest, w.Grade);
+            Editors.Open(dest, w.Grade, chosen);
             Cursor = Cursors.Default;
             Reload();
         }
