@@ -63,18 +63,15 @@ namespace Worksheets
     class Worksheet
     {
         public string SourcePath;
-        public int Number;
+        public Grade Grade;
+        public bool ShowExtension;
         public bool IsFolder { get { return Directory.Exists(SourcePath); } }
         public string OriginalName { get { return Path.GetFileName(SourcePath); } }
 
+        // The worksheet's own name, exactly as the admin named it ("ex 6.py" -> "ex 6"). No numbering.
         public string Title
         {
-            get
-            {
-                string n = IsFolder ? OriginalName : Path.GetFileNameWithoutExtension(SourcePath);
-                if (n.StartsWith("ورقة عمل")) return n;
-                return "ورقة عمل " + Number + " - " + n;
-            }
+            get { return IsFolder || ShowExtension ? OriginalName : Path.GetFileNameWithoutExtension(SourcePath); }
         }
 
         public string DestinationFor(Student s) { return Path.Combine(s.Folder, Catalog.SafeName(Title)); }
@@ -213,8 +210,10 @@ namespace Worksheets
             if (s.Track != null) AddChildren(paths, Path.Combine(root, s.Track), false);
             paths.Sort((a, b) => NaturalCompare(Path.GetFileName(a), Path.GetFileName(b)));
 
-            var list = new List<Worksheet>();
-            for (int i = 0; i < paths.Count; i++) list.Add(new Worksheet { SourcePath = paths[i], Number = i + 1 });
+            var list = paths.Select(p => new Worksheet { SourcePath = p, Grade = s.Grade }).ToList();
+            // Two files with the same name but different types (بيسك.htm / بيسك.swf) keep their extension apart.
+            foreach (var dup in list.GroupBy(w => w.Title, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+                foreach (var w in dup) if (!w.IsFolder) w.ShowExtension = true;
             return list;
         }
 
@@ -228,6 +227,13 @@ namespace Worksheets
             }
             foreach (var f in Directory.GetFiles(dir))
                 if (!IsHidden(f)) list.Add(f);
+        }
+
+        // Metadata files a Mac leaves next to real files ("._ex 6.py", ".DS_Store"); never real content.
+        public static bool IsMacJunk(string p)
+        {
+            string n = Path.GetFileName(p);
+            return n.StartsWith("._") || n.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase) || n == "__MACOSX";
         }
 
         public static bool IsHidden(string p)
@@ -267,12 +273,13 @@ namespace Worksheets
             Directory.CreateDirectory(dst);
             foreach (var f in Directory.GetFiles(src))
             {
+                if (IsMacJunk(f)) continue;
                 string to = Path.Combine(dst, Path.GetFileName(f));
                 File.Copy(f, to, true);
                 File.SetAttributes(to, File.GetAttributes(to) & ~FileAttributes.ReadOnly);
             }
             foreach (var d in Directory.GetDirectories(src))
-                CopyDirectory(d, Path.Combine(dst, Path.GetFileName(d)));
+                if (!IsMacJunk(d)) CopyDirectory(d, Path.Combine(dst, Path.GetFileName(d)));
         }
 
         public static void Log(Student s, string action)

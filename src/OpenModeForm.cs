@@ -6,83 +6,93 @@ using System.Windows.Forms;
 
 namespace Worksheets
 {
-    // Admin dialog: choose which program opens a worksheet after a student picks it.
+    // Admin dialog: which program opens a worksheet, chosen per grade.
     class OpenModeForm : Form
     {
-        readonly RadioButton[] radios;
-        readonly string[] modes = { Editors.Auto, Editors.PyCharm, Editors.VSCode, Editors.Default, Editors.Explorer, Editors.Custom };
+        static readonly string[] Modes =
+            { Editors.Auto, Editors.PyCharm, Editors.VSCode, Editors.VisualBasic, Editors.Default, Editors.Explorer, Editors.Custom };
+        static readonly string[] Labels =
+        {
+            "تلقائي: PyCharm ثم VS Code (ومشاريع VB في Visual Basic)",
+            "PyCharm",
+            "Visual Studio Code",
+            "Visual Basic (أي إصدار من Visual Studio)",
+            "البرنامج الافتراضي للملف",
+            "المجلد فقط (بدون برنامج)",
+            "برنامج آخر (المحدد بالأسفل)",
+        };
+
+        readonly ComboBox[] combos = new ComboBox[Catalog.Grades.Length];
         readonly TextBox custom = new TextBox();
 
         public OpenModeForm()
         {
-            Text = "طريقة فتح أوراق العمل";
+            Text = "طريقة فتح التمارين";
             Ui.Rtl(this);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(Ui.S(560), Ui.S(470));
+            ClientSize = new Size(Ui.S(620), Ui.S(470));
 
-            string py = Editors.FindPyCharm(), code = Editors.FindVSCode();
-            string[] labels =
+            int x = Ui.S(20), y = Ui.S(16);
+            Controls.Add(new Label
             {
-                "تلقائي (موصى به): PyCharm، ثم VS Code، ثم البرنامج الافتراضي",
-                "PyCharm  —  " + Found(py),
-                "Visual Studio Code  —  " + Found(code),
-                "البرنامج الافتراضي للملف (ملفات بايثون تفتح في IDLE)",
-                "المجلد فقط (بدون برنامج تحرير)",
-                "برنامج آخر:",
-            };
+                Text = "عند اختيار الطالب لتمرين، يُنسخ إلى مجلده ويُفتح المجلد، ثم يُفتح بالبرنامج التالي.\nينطبق هذا الإعداد على جميع الأجهزة.",
+                Location = new Point(x, y), Size = new Size(Ui.S(580), Ui.S(48)), ForeColor = Ui.Muted,
+            });
+            y += Ui.S(62);
 
-            var intro = new Label
+            for (int i = 0; i < Catalog.Grades.Length; i++)
             {
-                Text = "عند اختيار الطالب لورقة عمل، تُنسخ إلى مجلده ويُفتح المجلد، ثم تُفتح بالبرنامج التالي.\nينطبق هذا الإعداد على جميع الأجهزة.",
-                Location = new Point(Ui.S(20), Ui.S(16)), Size = new Size(Ui.S(520), Ui.S(48)), ForeColor = Ui.Muted,
-            };
-            Controls.Add(intro);
-
-            radios = new RadioButton[modes.Length];
-            int y = Ui.S(72);
-            for (int i = 0; i < modes.Length; i++)
-            {
-                radios[i] = new RadioButton { Text = labels[i], Location = new Point(Ui.S(20), y), AutoSize = true };
-                Controls.Add(radios[i]);
-                y += Ui.S(40);
+                var g = Catalog.Grades[i];
+                var label = Ui.Caption(g.Name + ":");
+                label.Location = new Point(x, y + Ui.S(4));
+                var c = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = Ui.F(10.5f) };
+                c.Items.AddRange(Labels);
+                c.SetBounds(x + Ui.S(150), y, Ui.S(430), 0);
+                int current = Array.IndexOf(Modes, Editors.ModeFor(g));
+                c.SelectedIndex = current < 0 ? 0 : current;
+                combos[i] = c;
+                Controls.Add(label);
+                Controls.Add(c);
+                y += Ui.S(46);
             }
 
-            custom.SetBounds(Ui.S(44), y, Ui.S(380), 0);
+            y += Ui.S(4);
+            var customLabel = Ui.Caption("البرنامج الآخر:");
+            customLabel.Location = new Point(x, y + Ui.S(4));
+            custom.SetBounds(x + Ui.S(150), y, Ui.S(312), 0);
             custom.Text = Editors.CustomPath;
             custom.RightToLeft = RightToLeft.No;
-            Controls.Add(custom);
             var browse = Ui.Btn("استعراض…", false);
-            browse.SetBounds(Ui.S(432), y - Ui.S(4), Ui.S(108), Ui.S(34));
+            browse.SetBounds(x + Ui.S(470), y - Ui.S(3), Ui.S(110), Ui.S(34));
             browse.Click += delegate { Browse(); };
-            Controls.Add(browse);
+            Controls.AddRange(new Control[] { customLabel, custom, browse });
             y += Ui.S(52);
 
-            var note = new Label
+            // What this PC has, so the admin can see if the choice will work here.
+            Controls.Add(new Label
             {
-                Text = "ملاحظة: البرنامج المختار يجب أن يكون مثبتاً على أجهزة الطلاب. إذا لم يوجد، يُفتح المجلد فقط.",
-                Location = new Point(Ui.S(20), y), Size = new Size(Ui.S(520), Ui.S(40)), ForeColor = Ui.Muted, Font = Ui.F(9f),
-            };
-            Controls.Add(note);
+                Text = "على هذا الجهاز:   PyCharm " + Mark(Editors.FindPyCharm() != null) +
+                       "     VS Code " + Mark(Editors.FindVSCode() != null) +
+                       "     Visual Basic " + Mark(Editors.HasVisualBasic()) +
+                       "\nالبرنامج المختار يجب أن يكون مثبتاً على أجهزة الطلاب، وإلا يُفتح المجلد فقط.",
+                Location = new Point(x, y), Size = new Size(Ui.S(580), Ui.S(52)), ForeColor = Ui.Muted, Font = Ui.F(9.5f),
+            });
 
             var ok = Ui.Btn("حفظ", true);
-            ok.SetBounds(Ui.S(20), ClientSize.Height - Ui.S(56), Ui.S(130), Ui.S(40));
+            ok.SetBounds(x, ClientSize.Height - Ui.S(56), Ui.S(130), Ui.S(40));
             ok.Click += delegate { Save(); };
             var cancel = Ui.Btn("إلغاء", false);
-            cancel.SetBounds(Ui.S(160), ClientSize.Height - Ui.S(56), Ui.S(130), Ui.S(40));
+            cancel.SetBounds(x + Ui.S(140), ClientSize.Height - Ui.S(56), Ui.S(130), Ui.S(40));
             cancel.DialogResult = DialogResult.Cancel;
             Controls.Add(ok);
             Controls.Add(cancel);
             CancelButton = cancel;
-
-            int current = Array.IndexOf(modes, Editors.Mode);
-            radios[current < 0 ? 0 : current].Checked = true;
-            custom.TextChanged += delegate { if (custom.Text.Length > 0) radios[modes.Length - 1].Checked = true; };
         }
 
-        static string Found(string path) { return path != null ? "مثبت على هذا الجهاز" : "غير مثبت على هذا الجهاز"; }
+        static string Mark(bool found) { return found ? "✔" : "✘"; }
 
         void Browse()
         {
@@ -92,16 +102,16 @@ namespace Worksheets
 
         void Save()
         {
-            string mode = modes[Array.FindIndex(radios, r => r.Checked)];
-            if (mode == Editors.Custom && !File.Exists(custom.Text.Trim()))
+            bool usesCustom = combos.Any(c => Modes[c.SelectedIndex] == Editors.Custom);
+            if (usesCustom && !File.Exists(custom.Text.Trim()))
             {
-                Ui.Error("الرجاء اختيار ملف البرنامج.");
+                Ui.Error("الرجاء اختيار ملف «البرنامج الآخر».");
                 return;
             }
             try
             {
-                Editors.Mode = mode;
-                if (mode == Editors.Custom) Editors.CustomPath = custom.Text.Trim();
+                for (int i = 0; i < combos.Length; i++) Editors.SetModeFor(Catalog.Grades[i], Modes[combos[i].SelectedIndex]);
+                if (usesCustom) Editors.CustomPath = custom.Text.Trim();
             }
             catch (Exception ex) { Ui.Error("تعذر حفظ الإعداد:\n" + ex.Message); return; }
             DialogResult = DialogResult.OK;

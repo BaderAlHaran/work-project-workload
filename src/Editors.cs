@@ -3,21 +3,29 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32;
 
 namespace Worksheets
 {
     // How a worksheet is opened after it is copied into the student's folder.
-    // The choice is stored in the shared settings.ini so it applies to every PC.
+    // Chosen per grade by the admin and stored in the shared settings.ini, so it applies to every PC.
     static class Editors
     {
-        public const string Auto = "auto", PyCharm = "pycharm", VSCode = "vscode", Default = "default", Explorer = "explorer", Custom = "custom";
+        public const string Auto = "auto", PyCharm = "pycharm", VSCode = "vscode", VisualBasic = "vb",
+                            Default = "default", Explorer = "explorer", Custom = "custom";
 
-        public static string Mode
+        // Grade 12 works on Visual Basic projects; grades 10 and 11 on Python.
+        public static string ModeFor(Grade g)
         {
-            get { return Settings.Get("open_mode") ?? Auto; }
-            set { Settings.Set("open_mode", value); }
+            string m = Settings.Get("open_mode_" + g.Number);
+            if (!string.IsNullOrEmpty(m)) return m;
+            if (g.Number == 12) return VisualBasic;
+            return Settings.Get("open_mode") ?? Auto; // setting saved before it was per grade
         }
+
+        public static void SetModeFor(Grade g, string mode) { Settings.Set("open_mode_" + g.Number, mode); }
 
         public static string CustomPath
         {
@@ -26,24 +34,31 @@ namespace Worksheets
         }
 
         // The folder always opens in Explorer so students can see their files; the editor opens alongside it.
-        public static void Open(string folder)
+        public static void Open(string folder, Grade grade)
         {
             Ui.OpenInExplorer(folder, false);
-            try { TryOpen(folder); }
+            try { TryOpen(folder, ModeFor(grade)); }
             catch { }
         }
 
-        static bool TryOpen(string folder)
+        static bool TryOpen(string folder, string mode)
         {
             string main = MainFile(folder);
-            switch (Mode)
+            string vbProject = VisualBasicProject(folder);
+            switch (mode)
             {
                 case Explorer: return false;
                 case PyCharm: return LaunchIde(FindPyCharm(), folder, main);
                 case VSCode: return LaunchIde(FindVSCode(), folder, main);
                 case Default: return OpenWithDefault(main);
                 case Custom: return LaunchIde(File.Exists(CustomPath) ? CustomPath : null, folder, main);
+                case VisualBasic:
+                    // Worksheets without a VB project (pictures, web pages) open in their normal program,
+                    // but never in a Python editor.
+                    if (vbProject != null) return OpenVisualBasic(vbProject);
+                    return main != null && !IsPython(main) && OpenWithDefault(main);
                 default:
+                    if (vbProject != null && OpenVisualBasic(vbProject)) return true;
                     return LaunchIde(FindPyCharm(), folder, main)
                         || LaunchIde(FindVSCode(), folder, main)
                         || OpenWithDefault(main);
@@ -65,27 +80,37 @@ namespace Worksheets
             if (file == null) return false;
             var psi = new ProcessStartInfo(file) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(file) };
             if (psi.Verbs.Contains("edit", StringComparer.OrdinalIgnoreCase)) psi.Verb = "edit";
-            else if (Path.GetExtension(file).Equals(".py", StringComparison.OrdinalIgnoreCase)) return false; // would just run it
+            else if (IsPython(file)) return false; // would just run it
             Process.Start(psi);
             return true;
         }
 
         static string Quote(string s) { return "\"" + s.TrimEnd('\\') + "\""; }
+        static bool IsPython(string file) { return Path.GetExtension(file).Equals(".py", StringComparison.OrdinalIgnoreCase); }
 
-        static readonly string[] Priority = { ".py", ".ipynb", ".sln", ".vbproj", ".html", ".htm", ".docx", ".doc", ".pdf", ".pptx", ".xlsx", ".txt", ".rtf" };
+        // ---------- choosing the file to open ----------
+
+        static readonly string[] Priority = { ".py", ".ipynb", ".sln", ".vbproj", ".vbp", ".html", ".htm", ".docx", ".doc", ".pdf", ".pptx", ".xlsx", ".txt", ".rtf", ".png", ".jpg", ".gif", ".mdb" };
+        static readonly string[] VbTypes = { ".sln", ".vbproj", ".vbp" };
         static readonly string[] SkipDirs = { "bin", "obj", "venv", "__pycache__", "node_modules" };
 
+        public static bool IsVisualBasic(string ext) { return VbTypes.Contains(ext.ToLowerInvariant()); }
+
         // The file students most likely want to start with: best type first, then the shallowest.
-        public static string MainFile(string folder)
+        public static string MainFile(string folder) { return Best(folder, Priority); }
+
+        static string VisualBasicProject(string folder) { return Best(folder, VbTypes); }
+
+        static string Best(string folder, string[] types)
         {
             var found = new List<Tuple<int, int, string>>();
-            Collect(folder, 0, found);
+            Collect(folder, 0, types, found);
             return found.OrderBy(t => t.Item1).ThenBy(t => t.Item2)
                         .ThenBy(t => Path.GetFileName(t.Item3), Comparer<string>.Create(Catalog.NaturalCompare))
                         .Select(t => t.Item3).FirstOrDefault();
         }
 
-        static void Collect(string dir, int depth, List<Tuple<int, int, string>> found)
+        static void Collect(string dir, int depth, string[] types, List<Tuple<int, int, string>> found)
         {
             if (depth > 4) return;
             try
@@ -94,20 +119,142 @@ namespace Worksheets
                 {
                     string name = Path.GetFileName(f);
                     if (name.StartsWith(".") || name.StartsWith("__init__")) continue;
-                    int rank = Array.IndexOf(Priority, Path.GetExtension(f).ToLowerInvariant());
+                    int rank = Array.IndexOf(types, Path.GetExtension(f).ToLowerInvariant());
                     if (rank >= 0) found.Add(Tuple.Create(rank, depth, f));
                 }
                 foreach (var d in Directory.GetDirectories(dir))
                 {
                     string name = Path.GetFileName(d);
                     if (name.StartsWith(".") || SkipDirs.Contains(name, StringComparer.OrdinalIgnoreCase)) continue;
-                    Collect(d, depth + 1, found);
+                    Collect(d, depth + 1, types, found);
                 }
             }
             catch { }
         }
 
-        // ---------- detection ----------
+        // ---------- Visual Basic (any version) ----------
+
+        [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
+        static extern uint AssocQueryString(uint flags, uint str, string assoc, string extra, [Out] StringBuilder output, ref uint length);
+        const uint AssocStrExecutable = 2;
+
+        // The program Windows opens this file type with, or null when there is none.
+        static string AssociatedProgram(string ext)
+        {
+            var sb = new StringBuilder(1024);
+            uint len = (uint)sb.Capacity;
+            if (AssocQueryString(0, AssocStrExecutable, ext, "open", sb, ref len) != 0) return null;
+            string exe = sb.ToString();
+            if (!File.Exists(exe) || Path.GetFileName(exe).Equals("OpenWith.exe", StringComparison.OrdinalIgnoreCase)) return null;
+            return exe;
+        }
+
+        static bool OpenVisualBasic(string project)
+        {
+            string ext = Path.GetExtension(project).ToLowerInvariant();
+            string dir = Path.GetDirectoryName(project);
+
+            // 1) The file association. For .sln this is Visual Studio's Version Selector,
+            //    which picks the right installed version for the project by itself.
+            if (AssociatedProgram(ext) != null)
+            {
+                Process.Start(new ProcessStartInfo(project) { UseShellExecute = true, WorkingDirectory = dir });
+                return true;
+            }
+
+            // 2) Search for an installed Visual Studio / Visual Basic.
+            string exe = ext == ".vbp" ? FindVB6() : FindVisualStudio();
+            if (exe == null) return false;
+            Process.Start(new ProcessStartInfo(exe, Quote(project)) { UseShellExecute = true, WorkingDirectory = dir });
+            return true;
+        }
+
+        // Newest installed Visual Studio or Visual Basic Express, any version from 2005 on.
+        public static string FindVisualStudio()
+        {
+            string newest = VsWhere();
+            if (newest != null) return newest;
+
+            foreach (var exe in new[] { "devenv.exe", "vbexpress.exe", "wdexpress.exe", "VSWinExpress.exe" })
+            {
+                string p = AppPath(exe);
+                if (p != null) return p;
+            }
+
+            // Registry entries of VS 2005-2015 and the Express editions, newest version first.
+            var hits = new List<Tuple<double, string>>();
+            foreach (var product in new[] { "VisualStudio", "VBExpress", "WDExpress", "VSWinExpress" })
+                foreach (var root in new[] { @"SOFTWARE\Microsoft\", @"SOFTWARE\WOW6432Node\Microsoft\" })
+                {
+                    try
+                    {
+                        using (var key = Registry.LocalMachine.OpenSubKey(root + product))
+                        {
+                            if (key == null) continue;
+                            foreach (var ver in key.GetSubKeyNames())
+                            {
+                                double v;
+                                if (!double.TryParse(ver, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v)) continue;
+                                using (var vk = key.OpenSubKey(ver))
+                                {
+                                    string dir = vk == null ? null : vk.GetValue("InstallDir") as string;
+                                    if (string.IsNullOrEmpty(dir)) continue;
+                                    foreach (var exe in new[] { "devenv.exe", "vbexpress.exe", "WDExpress.exe", "VSWinExpress.exe" })
+                                    {
+                                        string p = Path.Combine(dir, exe);
+                                        if (File.Exists(p)) hits.Add(Tuple.Create(v, p));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            return hits.OrderByDescending(h => h.Item1).Select(h => h.Item2).FirstOrDefault();
+        }
+
+        // Visual Studio 2017 and newer register themselves with vswhere instead of the registry.
+        static string VsWhere()
+        {
+            string vswhere = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                                          "Microsoft Visual Studio", "Installer", "vswhere.exe");
+            if (!File.Exists(vswhere)) return null;
+            try
+            {
+                var psi = new ProcessStartInfo(vswhere, "-latest -products * -property productPath")
+                {
+                    UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                };
+                using (var p = Process.Start(psi))
+                {
+                    string output = p.StandardOutput.ReadToEnd().Trim();
+                    p.WaitForExit(5000);
+                    string first = output.Split('\n').Select(l => l.Trim()).FirstOrDefault(File.Exists);
+                    return first;
+                }
+            }
+            catch { return null; }
+        }
+
+        public static string FindVB6()
+        {
+            string p = AppPath("VB6.EXE");
+            if (p != null) return p;
+            foreach (var pf in new[] { Environment.SpecialFolder.ProgramFilesX86, Environment.SpecialFolder.ProgramFiles })
+            {
+                string c = Path.Combine(Environment.GetFolderPath(pf), "Microsoft Visual Studio", "VB98", "VB6.EXE");
+                if (File.Exists(c)) return c;
+            }
+            return null;
+        }
+
+        public static bool HasVisualBasic()
+        {
+            return AssociatedProgram(".sln") != null || FindVisualStudio() != null || FindVB6() != null;
+        }
+
+        // ---------- Python editors ----------
 
         public static string FindPyCharm()
         {

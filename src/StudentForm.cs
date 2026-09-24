@@ -42,7 +42,7 @@ namespace Worksheets
             var bar = new Panel { Dock = DockStyle.Top, Height = Ui.S(56), Padding = new Padding(Ui.S(24), 0, Ui.S(24), 0) };
             var title = new Label
             {
-                Text = "اختر ورقة العمل لفتحها — سيتم حفظ نسخة منها في مجلدك الخاص",
+                Text = "اختر التمرين لفتحه — سيتم حفظ نسخة منه في مجلدك الخاص",
                 Font = Ui.FB(12f), ForeColor = Ui.Navy, AutoSize = true, Location = new Point(Ui.S(24), Ui.S(18)),
             };
             bar.Controls.Add(title);
@@ -180,14 +180,14 @@ namespace Worksheets
                     e.Graphics.FillRectangle(br, card.Width - Ui.S(5), 0, Ui.S(5), card.Height);
             };
 
-            var num = new Label
+            var kind = new Label
             {
-                Text = "ورقة عمل " + w.Number, Font = Ui.FB(9.5f), ForeColor = Ui.Gold, AutoSize = true,
+                Text = Kind(w), Font = Ui.FB(9.5f), ForeColor = Ui.Gold, AutoSize = true,
                 Location = new Point(Ui.S(16), Ui.S(12)),
             };
             var name = new Label
             {
-                Text = w.IsFolder ? w.OriginalName : Path.GetFileNameWithoutExtension(w.OriginalName),
+                Text = w.Title,
                 Font = Ui.FB(11.5f), ForeColor = Ui.Navy, AutoEllipsis = true,
                 Location = new Point(Ui.S(16), Ui.S(34)), Size = new Size(Ui.S(250), Ui.S(50)),
             };
@@ -201,7 +201,7 @@ namespace Worksheets
                 Text = done ? "✔ محفوظة في مجلدك" : "جديدة", Font = Ui.FB(9f),
                 ForeColor = done ? Ui.Success : Ui.Muted, AutoSize = true, Location = new Point(Ui.S(16), Ui.S(110)),
             };
-            card.Controls.AddRange(new Control[] { num, name, meta, state });
+            card.Controls.AddRange(new Control[] { kind, name, meta, state });
 
             var tip = new ToolTip();
             tip.SetToolTip(card, w.OriginalName);
@@ -209,6 +209,17 @@ namespace Worksheets
             card.Click += open;
             foreach (Control c in card.Controls) { c.Click += open; c.Cursor = Cursors.Hand; tip.SetToolTip(c, w.OriginalName); }
             return card;
+        }
+
+        // Small tag above the name, e.g. "بايثون" or "Visual Basic".
+        static string Kind(Worksheet w)
+        {
+            string main = w.IsFolder ? Editors.MainFile(w.SourcePath) : w.SourcePath;
+            string ext = main == null ? "" : Path.GetExtension(main).ToLowerInvariant();
+            if (ext == ".py" || ext == ".ipynb") return "بايثون";
+            if (Editors.IsVisualBasic(ext)) return "Visual Basic";
+            if (ext == ".txt") return "نص";
+            return w.IsFolder ? "مجلد" : "ملف";
         }
 
         static string Describe(Worksheet w)
@@ -254,7 +265,7 @@ namespace Worksheets
             }
             finally { Cursor = Cursors.Default; }
             Cursor = Cursors.WaitCursor;
-            Editors.Open(dest);
+            Editors.Open(dest, w.Grade);
             Cursor = Cursors.Default;
             Reload();
         }

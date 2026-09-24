@@ -39,7 +39,7 @@ namespace Worksheets
             side.Controls.Add(Section("الملفات"));
             side.Controls.Add(ActionButton("➕ إضافة ملفات", AddFiles, true));
             side.Controls.Add(ActionButton("📁 إضافة مجلد", AddFolder, true));
-            side.Controls.Add(ActionButton("🆕 ورقة عمل جديدة (مجلد فارغ)", NewFolder, false));
+            side.Controls.Add(ActionButton("🆕 تمرين جديد (مجلد فارغ)", NewFolder, false));
             side.Controls.Add(ActionButton("✏️ إعادة تسمية", Rename, false));
             side.Controls.Add(ActionButton("🗑️ حذف", Delete, false));
             side.Controls.Add(ActionButton("🔍 فتح في المستكشف", ShowInExplorer, false));
@@ -49,7 +49,7 @@ namespace Worksheets
             side.Controls.Add(ActionButton("📂 مكان حفظ أعمال الطلاب", delegate { using (var f = new StudentsFolderForm()) f.ShowDialog(this); }, false));
             side.Controls.Add(ActionButton("📋 سجل الدخول", OpenLog, false));
             side.Controls.Add(Section("الإعدادات"));
-            side.Controls.Add(ActionButton("📝 طريقة فتح أوراق العمل", delegate { using (var f = new OpenModeForm()) f.ShowDialog(this); }, false));
+            side.Controls.Add(ActionButton("📝 طريقة فتح التمارين", delegate { using (var f = new OpenModeForm()) f.ShowDialog(this); }, false));
             side.Controls.Add(ActionButton("🔑 تغيير كلمة المرور", ChangePassword, false));
             side.Controls.Add(ActionButton("🖥️ إنشاء اختصار على سطح المكتب", CreateShortcut, false));
 
@@ -57,7 +57,7 @@ namespace Worksheets
             {
                 Dock = DockStyle.Top, Height = Ui.S(64), Padding = new Padding(Ui.S(16), Ui.S(8), Ui.S(16), 0),
                 ForeColor = Ui.Muted, Font = Ui.F(9.5f),
-                Text = "• كل ملف أو مجلد داخل الصف مباشرة = ورقة عمل تظهر لجميع طلاب الصف.\n" +
+                Text = "• كل ملف أو مجلد داخل الصف مباشرة = تمرين يظهر لجميع طلاب الصف باسمه.\n" +
                        "• ما يوضع داخل مجلد «علمي» أو «أدبي» يظهر لطلاب ذلك التخصص فقط.  • يمكنك أيضاً سحب الملفات وإفلاتها على الشجرة.",
             };
 
@@ -271,6 +271,7 @@ namespace Worksheets
                 Cursor = Cursors.WaitCursor;
                 foreach (var src in paths)
                 {
+                    if (Catalog.IsMacJunk(src.TrimEnd('\\'))) continue;
                     string name = Path.GetFileName(src.TrimEnd('\\'));
                     string dst = Path.Combine(target, name);
                     if (string.Equals(src.TrimEnd('\\'), dst, StringComparison.OrdinalIgnoreCase)) continue;
@@ -305,8 +306,7 @@ namespace Worksheets
         {
             string target = TargetFolder();
             if (target == null) return;
-            int n = Directory.GetFileSystemEntries(target).Count(e => !Catalog.IsHidden(e) && !Catalog.Tracks.Contains(Path.GetFileName(e))) + 1;
-            string name = Ui.Prompt("ورقة عمل جديدة", "اسم المجلد:", "ورقة عمل " + n, false);
+            string name = Ui.Prompt("تمرين جديد", "اسم المجلد (يظهر للطلاب بنفس الاسم):", "", false);
             if (string.IsNullOrWhiteSpace(name)) return;
             string dst = Path.Combine(target, Catalog.SafeName(name));
             if (Directory.Exists(dst) || File.Exists(dst)) { Ui.Error("يوجد عنصر بهذا الاسم مسبقاً."); return; }
