@@ -186,17 +186,16 @@ namespace Worksheets
 
             // A single form: start Visual Studio itself so it can be told to open that form's file
             // (the association below can only open the whole solution).
-            // devenv splits a /Command argument at spaces and ignores escaped quotes, so a full path like
-            // "...\ملفات الطلاب\...\Form3.vb" breaks into pieces. Instead Visual Studio starts in the form's
-            // folder and gets the bare file name, which has no spaces.
-            string formName = vbForm == null ? null : Path.GetFileName(vbForm.File);
-            if (formName != null && ext != ".vbp" && !formName.Contains(" "))
+            // A single form: open the solution, then hand the form to that running Visual Studio with
+            // "devenv /edit <file>". (/Command "File.OpenFile ..." can't take paths with spaces, and
+            // devenv doesn't resolve a bare file name against its starting folder.)
+            if (vbForm != null && ext != ".vbp")
             {
                 string devenv = FindVisualStudio();
                 if (devenv != null)
                 {
-                    string args = Quote(project) + " /Command \"File.OpenFile " + formName + "\"";
-                    Process.Start(new ProcessStartInfo(devenv, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(vbForm.File) });
+                    var vs = Process.Start(new ProcessStartInfo(devenv, Quote(project)) { UseShellExecute = false, WorkingDirectory = dir });
+                    OpenFormWhenLoaded(vs, devenv, vbForm.File);
                     return true;
                 }
             }
@@ -214,6 +213,35 @@ namespace Worksheets
             if (exe == null) return false;
             Process.Start(new ProcessStartInfo(exe, Quote(project)) { UseShellExecute = true, WorkingDirectory = dir });
             return true;
+        }
+
+        // Waits (off the UI thread) until Visual Studio shows the loaded solution in its title — which is
+        // also after any "upgrade this old project" prompt — then asks it to open the form.
+        static void OpenFormWhenLoaded(Process vs, string devenv, string formFile)
+        {
+            var t = new System.Threading.Thread(delegate ()
+            {
+                try
+                {
+                    var until = DateTime.Now.AddMinutes(10);
+                    while (DateTime.Now < until)
+                    {
+                        System.Threading.Thread.Sleep(2000);
+                        if (vs.HasExited) return;
+                        vs.Refresh();
+                        if (vs.MainWindowTitle.Contains(" - ")) break; // "<solution> - Microsoft Visual Studio"
+                    }
+                    System.Threading.Thread.Sleep(4000); // let the project finish loading its files
+                    if (vs.HasExited) return;
+                    Process.Start(new ProcessStartInfo(devenv, "/edit " + Quote(formFile))
+                    {
+                        UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(formFile),
+                    });
+                }
+                catch { }
+            });
+            t.IsBackground = true;
+            t.Start();
         }
 
         // Newest installed Visual Studio or Visual Basic Express, any version from 2005 on.
