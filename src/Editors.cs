@@ -186,13 +186,16 @@ namespace Worksheets
 
             // A single form: start Visual Studio itself so it can be told to open that form's file
             // (the association below can only open the whole solution).
-            if (vbForm != null && ext != ".vbp")
+            // devenv splits a /Command argument at spaces and ignores escaped quotes, so a full path like
+            // "...\ملفات الطلاب\...\Form3.vb" breaks into pieces. Instead Visual Studio starts in the form's
+            // folder and gets the bare file name, which has no spaces.
+            string formName = vbForm == null ? null : Path.GetFileName(vbForm.File);
+            if (formName != null && ext != ".vbp" && !formName.Contains(" "))
             {
                 string devenv = FindVisualStudio();
                 if (devenv != null)
                 {
-                    // Full path in escaped quotes: devenv reads it as  File.OpenFile "C:\...\Form3.vb"
-                    string args = Quote(project) + " /Command \"File.OpenFile \\\"" + vbForm.File + "\\\"\"";
+                    string args = Quote(project) + " /Command \"File.OpenFile " + formName + "\"";
                     Process.Start(new ProcessStartInfo(devenv, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(vbForm.File) });
                     return true;
                 }
