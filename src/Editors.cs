@@ -108,7 +108,28 @@ namespace Worksheets
         // The file students most likely want to start with: best type first, then the shallowest.
         public static string MainFile(string folder) { return Best(folder, Priority); }
 
-        static string VisualBasicProject(string folder) { return Best(folder, VbTypes); }
+        // The file to open the project with. A .sln only counts if the projects it lists exist:
+        // lessons can carry a stale outer .sln pointing at a renamed folder, which Visual Studio can't load.
+        static string VisualBasicProject(string folder)
+        {
+            var solutions = new List<Tuple<int, int, string>>();
+            Collect(folder, 0, new[] { ".sln" }, solutions);
+            string sln = solutions.OrderBy(t => t.Item2).Select(t => t.Item3).FirstOrDefault(SolutionLoads);
+            return sln ?? Best(folder, new[] { ".vbproj", ".vbp" });
+        }
+
+        static bool SolutionLoads(string sln)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(sln);
+                var projects = Regex.Matches(ReadText(sln), @"^Project\(""[^""]*""\)\s*=\s*""[^""]*""\s*,\s*""([^""]+)""", RegexOptions.Multiline)
+                                    .Cast<Match>().Select(m => m.Groups[1].Value)
+                                    .Where(p => p.EndsWith("proj", StringComparison.OrdinalIgnoreCase)).ToList();
+                return projects.Count > 0 && projects.All(p => File.Exists(Path.Combine(dir, p)));
+            }
+            catch { return false; }
+        }
 
         static string Best(string folder, string[] types)
         {
@@ -170,7 +191,8 @@ namespace Worksheets
                 string devenv = FindVisualStudio();
                 if (devenv != null)
                 {
-                    string args = Quote(project) + " /Command \"File.OpenFile " + Path.GetFileName(vbForm.File) + "\"";
+                    // Full path in escaped quotes: devenv reads it as  File.OpenFile "C:\...\Form3.vb"
+                    string args = Quote(project) + " /Command \"File.OpenFile \\\"" + vbForm.File + "\\\"\"";
                     Process.Start(new ProcessStartInfo(devenv, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(vbForm.File) });
                     return true;
                 }
